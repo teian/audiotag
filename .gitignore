@@ -1,0 +1,21 @@
+/dist/
+/audiotag
+/audiotag.exe
+*.test
+/coverage.out
+/coverage.html
+*.prof
+*.pprof
+
+# Nix build-result links.
+/result
+/result-*
+
+# Editor and operating-system files.
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

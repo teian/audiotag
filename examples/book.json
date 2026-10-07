@@ -1,0 +1,8 @@
+{
+  "album": "The Example Book",
+  "author": "Example Author",
+  "narrator": "Example Reader",
+  "genre": "Audiobook",
+  "language": "eng",
+  "source": "book.md"
+}

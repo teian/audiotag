@@ -1,0 +1,12 @@
+AudioTag
+Copyright (c) 2026 AudioTag contributors
+Licensed under the EUPL v. 1.2 only (SPDX-License-Identifier: EUPL-1.2).
+The full licence text is provided in LICENSE.
+
+Binary distributions include the corresponding source as source.tar.gz in
+release archives, or share/doc/audiotag/source.tar.gz in installed packages.
+Extract that archive to obtain the source, build scripts, and documentation.
+
+Compiled binaries include the Go runtime and standard library. Their BSD
+licence notice is provided in Go-BSD-3-Clause.txt and applies to those Go
+components. The AudioTag code and documentation are licensed under EUPL-1.2.

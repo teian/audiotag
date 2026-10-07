@@ -1,0 +1,210 @@
+name: Build and test
+
+on:
+  push:
+    tags-ignore: ['v*'] # Stable releases run this workflow through release.yml.
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: '1.0.0'
+      ref:
+        type: string
+        default: ''
+      source_date_epoch:
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+env:
+  VERSION: ${{ inputs.version || '1.0.0' }}
+  SOURCE_DATE_EPOCH: ${{ inputs.source_date_epoch || '0' }}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test ${{ matrix.os }} / Go ${{ matrix.go }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            go: '1.22.x'
+          - os: ubuntu-latest
+            go: stable
+          - os: macos-latest
+            go: stable
+          - os: windows-latest
+            go: stable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Install audio and shell validation tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg zsh fish
+      - name: Install audio and shell validation tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg fish
+      - name: Install audio validation tools (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ffmpeg --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Require the independent demuxer and decoder
+        run: |
+          ffmpeg -version
+          ffprobe -version
+      - name: Check Go formatting
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          unformatted=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+      - run: go vet -buildvcs=false ./...
+      - run: go test -buildvcs=false -race ./...
+      - name: Build the standalone CLI
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          binary=dist/audiotag
+          if [ "$RUNNER_OS" = Windows ]; then binary=dist/audiotag.exe; fi
+          go build -buildvcs=false -trimpath -o "$binary" ./cmd/audiotag
+          "$binary" formats
+
+  release-build:
+    name: Cross-build 18 release targets
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - run: go run ./cmd/task release
+      - name: Verify archive checksums
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: audiotag-releases
+          overwrite: true
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/SHA256SUMS
+
+  packages:
+    name: Build DEB and RPM / ${{ matrix.arch }}
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64, arm, '386', riscv64, ppc64le]
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: go run ./cmd/task package deb
+      - run: go run ./cmd/task package rpm
+      - name: Check package contents and licence
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --extract dist/*.deb "$RUNNER_TEMP/audiotag-deb"
+          if [ "$ARCH" = amd64 ]; then
+            "$RUNNER_TEMP/audiotag-deb/usr/bin/audiotag" formats
+            test "$("$RUNNER_TEMP/audiotag-deb/usr/bin/audiotag" version)" = "audiotag $VERSION"
+          fi
+          cmp LICENSE "$RUNNER_TEMP/audiotag-deb/usr/share/licenses/audiotag/LICENSE"
+          test -f "$RUNNER_TEMP/audiotag-deb/usr/share/doc/audiotag/source.tar.gz"
+          rpm -qp --queryformat '%{LICENSE}\n' dist/*.rpm | grep -Fx EUPL-1.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: audiotag-deb-rpm-${{ matrix.arch }}
+          overwrite: true
+          if-no-files-found: error
+          path: |
+            dist/*.deb
+            dist/*.rpm
+
+  alpine:
+    name: Build and install Alpine APK
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - run: sh scripts/ci-alpine.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: audiotag-alpine
+          overwrite: true
+          if-no-files-found: error
+          path: |
+            dist/apk/**/*.apk
+            dist/apk/keys/*.pub
+
+  nix:
+    name: Build Nix package and store export
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - run: sh scripts/ci-nix.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: audiotag-nix
+          overwrite: true
+          if-no-files-found: error
+          path: dist/audiotag.nixpkg

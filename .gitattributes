@@ -1,0 +1,48 @@
+# Normalize source and documentation across Linux, BSD, macOS, and Windows.
+* text=auto
+*.go text eol=lf
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+*.fish text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.nix text eol=lf
+*.spec text eol=lf
+Makefile text eol=lf
+APKBUILD text eol=lf
+LICENSE text eol=lf
+NOTICE text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Audio, artwork, and archives are binary, including small test fixtures.
+*.flac binary
+*.mp3 binary
+*.m4a binary
+*.m4b binary
+*.mp4 binary
+*.opus binary
+*.ogg binary
+*.wav binary
+*.aiff binary
+*.aif binary
+*.aifc binary
+*.wv binary
+*.ape binary
+*.mpc binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.gz binary
+*.zip binary
+*.deb binary
+*.rpm binary
+*.apk binary
+*.nixpkg binary
+*.exe binary

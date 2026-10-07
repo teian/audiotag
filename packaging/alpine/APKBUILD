@@ -1,0 +1,35 @@
+# Maintainer: AudioTag contributors <audiotag@example.invalid>
+# Build with scripts/package-apk.sh on Alpine (abuild, go).
+pkgname=audiotag
+pkgver=1.0.0
+pkgrel=0
+pkgdesc="Native lossless audio and audiobook metadata CLI"
+url="https://github.com/teian/audiotag"
+arch="all"
+license="EUPL-1.2"
+makedepends="go"
+source="audiotag-$pkgver.tar.gz"
+builddir="$srcdir/audiotag-$pkgver"
+
+
+build() {
+ export CGO_ENABLED=0
+ go build -buildvcs=false -trimpath -ldflags "-s -w -X main.version=$pkgver" -o audiotag ./cmd/audiotag
+ VERSION=$pkgver go run scripts/source.go --output source.tar.gz
+}
+check() {
+ go test ./...
+}
+package() {
+ install -Dm755 audiotag "$pkgdir/usr/bin/audiotag"
+ install -Dm644 cmd/audiotag/completions/audiotag.bash "$pkgdir/usr/share/bash-completion/completions/audiotag"
+ install -Dm644 cmd/audiotag/completions/audiotag.zsh "$pkgdir/usr/share/zsh/site-functions/_audiotag"
+ install -Dm644 cmd/audiotag/completions/audiotag.fish "$pkgdir/usr/share/fish/vendor_completions.d/audiotag.fish"
+ install -Dm644 LICENSE "$pkgdir/usr/share/licenses/audiotag/LICENSE"
+ install -Dm644 NOTICE "$pkgdir/usr/share/licenses/audiotag/NOTICE"
+ install -Dm644 Go-BSD-3-Clause.txt "$pkgdir/usr/share/licenses/audiotag/Go-BSD-3-Clause.txt"
+ for doc in README.md TAGS.md BENCHMARKS.md CONTRIBUTING.md CLA.md source.tar.gz; do
+  install -Dm644 "$doc" "$pkgdir/usr/share/doc/audiotag/$doc"
+ done
+ cp -R examples "$pkgdir/usr/share/doc/audiotag/"
+}
