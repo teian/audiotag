@@ -31,8 +31,11 @@ func TestPublishFailureRetryAndPublicImmutability(t *testing.T) {
 	run := func(args ...string) ([]byte, error) {
 		switch args[0] {
 		case "api":
+			if len(args) != 5 || args[1] != "repos/owner/repo/releases" || args[2] != "--paginate" || args[3] != "--jq" {
+				t.Fatalf("draft discovery must use paginated releases list: %v", args)
+			}
 			if !exists {
-				return []byte("gh: Not Found (HTTP 404)"), fmt.Errorf("not found")
+				return nil, nil
 			}
 			return remote(), nil
 		case "release":

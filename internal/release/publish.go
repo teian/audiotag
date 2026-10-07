@@ -18,12 +18,16 @@ func Publish(output, version, commit, repo string, run func(...string) ([]byte, 
 		return err
 	}
 	tag := "v" + version
-	endpoint := "repos/" + repo + "/releases/tags/" + tag
-	data, err := run("api", endpoint)
+	// The tag endpoint excludes drafts, even after successful asset uploads.
+	// List releases with authentication so retries can find an existing draft.
+	lookup := func() ([]byte, error) {
+		return run("api", "repos/"+repo+"/releases", "--paginate", "--jq", `.[] | select(.tag_name == "`+tag+`")`)
+	}
+	data, err := lookup()
 	if err != nil {
-		if !strings.Contains(string(data), "(HTTP 404)") {
-			return err
-		}
+		return err
+	}
+	if len(strings.TrimSpace(string(data))) == 0 {
 		if _, err = run("release", "create", tag, "--draft", "--verify-tag", "--target", commit, "--title", "AudioTag "+tag, "--generate-notes"); err != nil {
 			return err
 		}
@@ -46,7 +50,7 @@ func Publish(output, version, commit, repo string, run func(...string) ([]byte, 
 	if _, err = run(args...); err != nil {
 		return err
 	}
-	data, err = run("api", endpoint)
+	data, err = lookup()
 	if err != nil {
 		return err
 	}
@@ -60,7 +64,7 @@ func Publish(output, version, commit, repo string, run func(...string) ([]byte, 
 	if _, err = run("release", "edit", tag, "--draft=false", "--verify-tag", "--latest"); err != nil {
 		return err
 	}
-	data, err = run("api", endpoint)
+	data, err = lookup()
 	if err != nil {
 		return err
 	}
