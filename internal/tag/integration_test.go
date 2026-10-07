@@ -35,10 +35,12 @@ func TestRealContainers(t *testing.T) {
 	if _, e := exec.LookPath("ffprobe"); e != nil {
 		t.Skip("ffprobe only needed for integration validation")
 	}
+	// Use FFmpeg's built-in Vorbis encoder: platform packages may omit libvorbis.
+	// It requires experimental mode and stereo input; neither affects the CLI.
 	cases := []struct {
 		name, codec string
 		extra       []string
-	}{{"book.flac", "flac", nil}, {"book.mp3", "libmp3lame", nil}, {"book.m4a", "aac", nil}, {"book.m4b", "aac", []string{"-movflags", "+faststart"}}, {"book.opus", "libopus", nil}, {"book.ogg", "libvorbis", nil}, {"book.wav", "pcm_s16le", nil}, {"book.aiff", "pcm_s16be", nil}, {"book.wv", "wavpack", nil}}
+	}{{"book.flac", "flac", nil}, {"book.mp3", "libmp3lame", nil}, {"book.m4a", "aac", nil}, {"book.m4b", "aac", []string{"-movflags", "+faststart"}}, {"book.opus", "libopus", nil}, {"book.ogg", "vorbis", []string{"-strict", "experimental", "-ac", "2"}}, {"book.wav", "pcm_s16le", nil}, {"book.aiff", "pcm_s16be", nil}, {"book.wv", "wavpack", nil}}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
