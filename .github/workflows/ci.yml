@@ -109,7 +109,7 @@ jobs:
       - name: Verify archive checksums
         working-directory: dist
         run: sha256sum --check SHA256SUMS
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: audiotag-releases
           overwrite: true
@@ -154,7 +154,7 @@ jobs:
           cmp LICENSE "$RUNNER_TEMP/audiotag-deb/usr/share/licenses/audiotag/LICENSE"
           test -f "$RUNNER_TEMP/audiotag-deb/usr/share/doc/audiotag/source.tar.gz"
           rpm -qp --queryformat '%{LICENSE}\n' dist/*.rpm | grep -Fx EUPL-1.2
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: audiotag-deb-rpm-${{ matrix.arch }}
           overwrite: true
@@ -178,7 +178,7 @@ jobs:
           go-version: stable
           cache: false
       - run: sh scripts/ci-alpine.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: audiotag-alpine
           overwrite: true
@@ -202,7 +202,7 @@ jobs:
           go-version: stable
           cache: false
       - run: sh scripts/ci-nix.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: audiotag-nix
           overwrite: true
